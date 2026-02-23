@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Register - SurplusLink{% endblock %}
+{% block content %}
+<div class="row align-items-center justify-content-center g-4">
+    <div class="col-lg-3 d-none d-lg-flex auth-images-left justify-content-end">
+        <div class="d-flex flex-column gap-3">
+            <div class="float-img-wrap float-1">
+                <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=280&q=80" alt="Food to share">
+                <div class="quote-overlay"><p>"Give more, live more." — Rumi</p></div>
+            </div>
+            <div class="float-img-wrap float-2">
+                <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=280&q=80" alt="Fresh food">
+                <div class="quote-overlay"><p>"One kind act changes a day."</p></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-5 col-md-8">
+        <div class="glass-card p-4">
+            <h2 class="text-center text-success mb-4">Register</h2>
+            <form method="post" action="{{ url_for('auth.register') }}" id="registerForm">
+                <div class="mb-3">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" name="name" class="form-control" required placeholder="Your name">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control" required placeholder="you@example.com">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" class="form-control" required minlength="6">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Role</label>
+                    <select name="role" class="form-select">
+                        <option value="donor">Donor (Hotel / Mess / Caterer)</option>
+                        <option value="ngo">NGO / Orphanage</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <button type="button" class="btn btn-outline-success btn-sm" id="getLocation">Use My Location</button>
+                    <span class="ms-2 text-muted small" id="locStatus">Location will be used for matching</span>
+                </div>
+                <input type="hidden" name="latitude" id="lat">
+                <input type="hidden" name="longitude" id="lon">
+                <button type="submit" class="btn btn-primary w-100">Register</button>
+            </form>
+            <p class="text-center mt-3 mb-0"><a href="{{ url_for('auth.login') }}">Already have an account? Login</a></p>
+        </div>
+    </div>
+    <div class="col-lg-3 d-none d-lg-flex auth-images-right justify-content-start">
+        <div class="d-flex flex-column gap-3">
+            <div class="float-img-wrap float-3">
+                <img src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=280&q=80" alt="Community meals">
+                <div class="quote-overlay"><p>"Feed one person." — Mother Teresa</p></div>
+            </div>
+            <div class="float-img-wrap float-4">
+                <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=280&q=80" alt="Shared meals">
+                <div class="quote-overlay"><p>"Sharing builds community."</p></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="text-center mt-4">
+    <p class="text-muted fst-italic">"One kind act of sharing can change someone's day."</p>
+</div>
+<script>
+document.getElementById('getLocation').addEventListener('click', function() {
+    if (!navigator.geolocation) {
+        document.getElementById('locStatus').textContent = 'Geolocation not supported';
+        return;
+    }
+    document.getElementById('locStatus').textContent = 'Getting location...';
+    navigator.geolocation.getCurrentPosition(
+        function(pos) {
+            document.getElementById('lat').value = pos.coords.latitude;
+            document.getElementById('lon').value = pos.coords.longitude;
+            document.getElementById('locStatus').textContent = 'Location captured';
+        },
+        function() {
+            document.getElementById('locStatus').textContent = 'Location denied';
+        }
+    );
+});
+</script>
+{% endblock %}

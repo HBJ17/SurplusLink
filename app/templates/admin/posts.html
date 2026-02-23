@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}All Posts - Admin - SurplusLink{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2 class="text-success mb-0">All Posts</h2>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.posts') }}" class="btn btn-outline-success btn-sm">Refresh</a>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-success">Dashboard</a>
+        <a href="{{ url_for('admin.export_csv') }}" class="btn btn-success">Export CSV</a>
+    </div>
+</div>
+
+
+<div class="glass-card overflow-hidden">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Donor Name</th>
+                    <th>Donor Email</th>
+                    <th>Food Type</th>
+                    <th>Qty</th>
+                    <th>Status</th>
+                    <th>Accepted By (NGO Name)</th>
+                    <th>NGO Email</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in posts %}
+                <tr>
+                    <td>{{ p.id }}</td>
+                    <td>{{ p.donor.name }}</td>
+                    <td>{{ p.donor.email }}</td>
+                    <td>{{ p.food_type }}</td>
+                    <td>{{ p.quantity }}</td>
+                    <td><span class="badge bg-{{ 'success' if p.status == 'available' else 'primary' if p.status == 'accepted' else 'success' if p.status == 'delivered' else 'danger' }}">{{ 'Delivery Complete' if p.status == 'delivered' else p.status }}</span></td>
+                    <td>{{ p.ngo.name if p.ngo else '-' }}</td>
+                    <td>{{ p.ngo.email if p.ngo else '-' }}</td>
+                    <td>{{ p.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9" class="text-center text-muted">No posts</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

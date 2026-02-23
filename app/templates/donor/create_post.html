@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Create Food Post - SurplusLink{% endblock %}
+{% block content %}
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="glass-card p-4">
+            <h2 class="text-success mb-4">Create Food Post</h2>
+            <form method="post" action="{{ url_for('donor.create_post') }}" id="postForm">
+                <div class="mb-3">
+                    <label class="form-label">Food Type</label>
+                    <input type="text" name="food_type" class="form-control" required placeholder="e.g. Rice, Curry, Bread">
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Quantity (portions)</label>
+                    <input type="number" name="quantity" class="form-control" required min="1" placeholder="10">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Expires in (hours)</label>
+                    <input type="number" name="expiry_hours" class="form-control" value="4" min="1" max="24">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Delivery Type</label>
+                    <select name="delivery_type" class="form-select">
+                        <option value="pickup">Pickup</option>
+                        <option value="delivery">Delivery</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Pickup / Delivery Point</label>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <button type="button" class="btn btn-outline-success btn-sm" id="getLocation">
+                            <i class="bi bi-geo-alt-fill me-1"></i> Auto-detect my location
+                        </button>
+                        <span class="text-muted small align-self-center" id="locStatus">Or click on map</span>
+                    </div>
+                    <input type="hidden" name="latitude" id="lat">
+                    <input type="hidden" name="longitude" id="lon">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Address (optional)</label>
+                    <input type="text" name="address" class="form-control" placeholder="Street, City">
+                </div>
+                <button type="submit" class="btn btn-success">Create Post</button>
+                <a href="{{ url_for('donor.dashboard') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="glass-card p-3">
+            <label class="form-label small text-muted mb-2">Set pickup/delivery point on map (click to place marker)</label>
+            <div id="pickupMap" style="height: 350px; border-radius: 12px; overflow: hidden;"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var latInput = document.getElementById('lat');
+    var lonInput = document.getElementById('lon');
+    var locStatus = document.getElementById('locStatus');
+    var defaultLat = 20.5937, defaultLon = 78.9629; // India center
+
+    var map = L.map('pickupMap').setView([defaultLat, defaultLon], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+
+    var marker = null;
+    var markerIcon = L.divIcon({
+        className: '',
+        html: '<div style="background:#16a34a;width:28px;height:28px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>'
+    });
+
+    function setLocation(lat, lon) {
+        latInput.value = lat;
+        lonInput.value = lon;
+        locStatus.textContent = 'Location set ✓ (' + lat.toFixed(4) + ', ' + lon.toFixed(4) + ')';
+        if (marker) map.removeLayer(marker);
+        marker = L.marker([lat, lon], { icon: markerIcon }).addTo(map).bindPopup('Pickup/Delivery point');
+        map.setView([lat, lon], 14);
+    }
+
+    map.on('click', function(e) {
+        setLocation(e.latlng.lat, e.latlng.lng);
+    });
+
+    document.getElementById('getLocation').addEventListener('click', function() {
+        if (!navigator.geolocation) {
+            locStatus.textContent = 'Geolocation not supported';
+            return;
+        }
+        locStatus.textContent = 'Getting location...';
+        navigator.geolocation.getCurrentPosition(
+            function(pos) {
+                setLocation(pos.coords.latitude, pos.coords.longitude);
+            },
+            function() {
+                locStatus.textContent = 'Location denied — click on map instead';
+            }
+        );
+    });
+
+    // Auto-detect on load (optional)
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(pos) {
+                setLocation(pos.coords.latitude, pos.coords.longitude);
+            },
+            function() {}
+        );
+    }
+})();
+</script>
+{% endblock %}

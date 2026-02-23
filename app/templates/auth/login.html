@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Login - SurplusLink{% endblock %}
+{% block content %}
+<div class="row align-items-center justify-content-center g-4">
+    <div class="col-lg-3 d-none d-lg-flex auth-images-left justify-content-end">
+        <div class="d-flex flex-column gap-3">
+            <div class="float-img-wrap float-1">
+                <img src="https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=280&q=80" alt="Fresh food">
+                <div class="quote-overlay"><p>"Food is meant to be shared."</p></div>
+            </div>
+            <div class="float-img-wrap float-2">
+                <img src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=280&q=80" alt="Food to share">
+                <div class="quote-overlay"><p>"When we give, we receive tenfold."</p></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-5 col-md-8">
+        <div class="glass-card p-4">
+            <h2 class="text-center text-success mb-4">Login</h2>
+            <form method="post" action="{{ url_for('auth.login') }}">
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control" required placeholder="you@example.com">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Login</button>
+            </form>
+            <p class="text-center mt-3 mb-0"><a href="{{ url_for('auth.register') }}">Create an account</a></p>
+        </div>
+    </div>
+    <div class="col-lg-3 d-none d-lg-flex auth-images-right justify-content-start">
+        <div class="d-flex flex-column gap-3">
+            <div class="float-img-wrap float-3">
+                <img src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=280&q=80" alt="Shared meals">
+                <div class="quote-overlay"><p>"Share food with strangers."</p></div>
+            </div>
+            <div class="float-img-wrap float-4">
+                <img src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=280&q=80" alt="Community meals">
+                <div class="quote-overlay"><p>"Foundation of community."</p></div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="text-center mt-4">
+    <p class="text-muted fst-italic">"Sharing food is the foundation of community."</p>
+</div>
+{% endblock %}

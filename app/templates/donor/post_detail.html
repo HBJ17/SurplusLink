@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Post {{ post.food_type }} - SurplusLink{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <a href="{{ url_for('donor.dashboard') }}" class="text-success">&larr; Back to Dashboard</a>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="glass-card p-4 mb-4">
+            <h3 class="text-success">{{ post.food_type }}</h3>
+            <p><strong>Quantity:</strong> {{ post.quantity }} portions</p>
+            <p><strong>Status:</strong> <span class="badge bg-{{ 'success' if post.status == 'available' else 'primary' if post.status == 'accepted' else 'success' if post.status == 'delivered' else 'danger' }}">{{ 'Delivery Complete' if post.status == 'delivered' else post.status }}</span></p>
+            <p><strong>Expires:</strong> {{ post.expiry_time.strftime('%Y-%m-%d %H:%M') }}</p>
+            {% if ngo %}
+            <hr>
+            <h5>Assigned NGO</h5>
+            <p><strong>Name:</strong> {{ ngo.name }}</p>
+            <p><strong>Email:</strong> {{ ngo.email }}</p>
+            {% if post.delivered_at %}
+            <p class="text-success">✓ Delivered at {{ post.delivered_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            <a href="{{ url_for('donor.rate_ngo', post_id=post.id) }}" class="btn btn-sm btn-success">Rate NGO</a>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-md-7">
+        {% if post.delivery_type == 'delivery' and post.status in ('accepted', 'delivered') and ngo %}
+        <div class="glass-card p-3 mb-3">
+            <h5>Delivery Tracking</h5>
+            <p id="deliveryStatus" class="mb-0">{{ 'Completed - both donor and NGO notified' if post.status == 'delivered' else 'In progress - refresh to update' }}</p>
+        </div>
+        <div id="map" style="height: 400px; border-radius: 16px; overflow: hidden;"></div>
+        <p class="mt-2 small text-muted" id="distanceInfo"></p>
+        {% elif post.delivery_type == 'pickup' and post.status == 'accepted' and ngo %}
+        <div class="glass-card p-5 text-center">
+            <p class="text-muted mb-0">Pickup order. NGO will mark Order Complete when they pick up the food.</p>
+        </div>
+        {% else %}
+        <div class="glass-card p-5 text-center">
+            <p class="text-muted">{% if post.delivery_type == 'delivery' %}Map will appear when an NGO accepts.{% else %}Waiting for NGO to accept.{% endif %}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if post.delivery_type == 'delivery' and post.status in ('accepted', 'delivered') and ngo %}
+<script>
+// Poll for delivery status when in progress
+{% if post.status == 'accepted' %}
+(function poll() {
+    fetch('/donor/api/post/{{ post.id }}/status')
+        .then(r => r.json())
+        .then(function(d) {
+            if (d.status === 'delivered') location.reload();
+        });
+    setTimeout(poll, 5000);
+})();
+{% endif %}
+(function() {
+    const mapEl = document.getElementById('map');
+    if (!mapEl) return;
+    const map = L.map('map').setView([{{ post.latitude }}, {{ post.longitude }}], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    const donorIcon = L.divIcon({ className: 'donor-marker', html: '<div style="background:#16a34a;width:20px;height:20px;border-radius:50%;border:2px solid white;"></div>' });
+    const ngoIcon = L.divIcon({ className: 'ngo-marker', html: '<div style="background:#22c55e;width:20px;height:20px;border-radius:50%;border:2px solid white;"></div>' });
+
+    const donorLat = {{ post.latitude }}, donorLon = {{ post.longitude }};
+    const ngoLat = {{ ngo.latitude if ngo.latitude is not none else post.latitude + 0.01 }}, ngoLon = {{ ngo.longitude if ngo.longitude is not none else post.longitude }};
+
+    L.marker([donorLat, donorLon], { icon: donorIcon }).addTo(map).bindPopup('Donor');
+    L.marker([ngoLat, ngoLon], { icon: ngoIcon }).addTo(map).bindPopup('{{ ngo.name }}');
+
+    const path = [[donorLat, donorLon], [ngoLat, ngoLon]];
+    L.polyline(path, { color: '#16a34a', weight: 4 }).addTo(map);
+    map.fitBounds(path);
+
+    const R = 6371;
+    function haversine(lat1, lon1, lat2, lon2) {
+        const d = Math.PI / 180;
+        const a = Math.sin((lat2 - lat1) * d / 2) ** 2 + Math.cos(lat1 * d) * Math.cos(lat2 * d) * Math.sin((lon2 - lon1) * d / 2) ** 2;
+        return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+    const dist = haversine(donorLat, donorLon, ngoLat, ngoLon);
+    document.getElementById('distanceInfo').textContent = 'Distance: ~' + dist.toFixed(2) + ' km | Est. travel: ~' + Math.ceil(dist / 25 * 60) + ' min';
+})();
+</script>
+{% endif %}
+{% endblock %}

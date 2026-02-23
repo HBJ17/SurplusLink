@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SurplusLink{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --green: #16a34a;
+            --green-light: #22c55e;
+            --green-pale: #86efac;
+            --page-green: #f0fdf4;
+            --white: #ffffff;
+            --glass-bg: rgba(255, 255, 255, 0.5);
+            --glass-border: rgba(255, 255, 255, 0.6);
+            --shadow: 0 8px 32px rgba(22, 163, 74, 0.15);
+        }
+        * { box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(160deg, var(--page-green) 0%, var(--green-pale) 35%, var(--green-light) 70%, var(--green) 100%);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: var(--shadow);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(22, 163, 74, 0.2);
+        }
+        .btn-primary, .btn-success {
+            background: var(--green);
+            border-color: var(--green);
+        }
+        .btn-primary:hover, .btn-success:hover {
+            background: #15803d;
+            border-color: #15803d;
+        }
+        .btn-outline-success {
+            border-color: var(--green);
+            color: var(--green);
+        }
+        .btn-outline-success:hover {
+            background: var(--page-green);
+            border-color: var(--green);
+            color: var(--green);
+        }
+        .navbar-glass {
+            background: rgba(255, 255, 255, 0.5) !important;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+        }
+        .navbar-brand.text-success, .text-success, h2.text-success, h5.text-success {
+            color: var(--green) !important;
+        }
+        .alert { border-radius: 12px; }
+        .badge.bg-success { background: var(--green) !important; }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--green-light);
+            box-shadow: 0 0 0 0.2rem rgba(34, 197, 94, 0.25);
+        }
+        .float-img-wrap {
+            width: 150px;
+            height: 150px;
+            position: relative;
+            display: inline-block;
+        }
+        .float-img-wrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+        .float-img-wrap .quote-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 8px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.85));
+            border-radius: 0 0 12px 12px;
+        }
+        .float-img-wrap .quote-overlay p {
+            color: white;
+            font-size: 0.65rem;
+            line-height: 1.2;
+            margin: 0;
+            font-style: italic;
+        }
+        @keyframes float1 {
+            0%, 100% { transform: rotate(-6deg) translateY(0); }
+            50% { transform: rotate(-6deg) translateY(-10px); }
+        }
+        @keyframes float2 {
+            0%, 100% { transform: rotate(4deg) translateY(0); }
+            50% { transform: rotate(4deg) translateY(-10px); }
+        }
+        @keyframes float3 {
+            0%, 100% { transform: rotate(5deg) translateY(0); }
+            50% { transform: rotate(5deg) translateY(-10px); }
+        }
+        @keyframes float4 {
+            0%, 100% { transform: rotate(-4deg) translateY(0); }
+            50% { transform: rotate(-4deg) translateY(-10px); }
+        }
+        .float-img-wrap.float-1 { animation: float1 4s ease-in-out infinite; }
+        .float-img-wrap.float-2 { animation: float2 4.5s ease-in-out infinite 0.5s; }
+        .float-img-wrap.float-3 { animation: float3 3.8s ease-in-out infinite 0.3s; }
+        .float-img-wrap.float-4 { animation: float4 4.2s ease-in-out infinite 0.7s; }
+        .auth-images-left, .auth-images-right {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            align-items: center;
+        }
+        .auth-images-left { align-items: flex-end; padding-right: 12px; }
+        .auth-images-right { align-items: flex-start; padding-left: 12px; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light navbar-glass mb-4">
+        <div class="container">
+            <a class="navbar-brand fw-bold text-success d-flex align-items-center gap-2" href="/">
+                <i class="bi bi-basket2-fill fs-4" title="Sharing food"></i>
+                SurplusLink
+            </a>
+            <div class="navbar-nav ms-auto">
+                {% if current_user.is_authenticated %}
+                    {% if current_user.role == 'donor' %}
+                    <a class="nav-link" href="{{ url_for('donor.dashboard') }}">Dashboard</a>
+                    {% elif current_user.role == 'ngo' %}
+                    <a class="nav-link" href="{{ url_for('ngo.dashboard') }}">Dashboard</a>
+                    {% elif current_user.role == 'admin' %}
+                    <a class="nav-link" href="{{ url_for('admin.dashboard') }}">Dashboard</a>
+                    <a class="nav-link" href="{{ url_for('admin.posts') }}">All Posts</a>
+                    {% endif %}
+                    <span class="nav-link text-dark">{{ current_user.name }}</span>
+                    <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+                {% else %}
+                    <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                    <a class="nav-link" href="{{ url_for('auth.register') }}">Register</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <main class="container pb-5">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for cat, msg in messages %}
+                    <div class="alert alert-{{ 'danger' if cat == 'error' else cat or 'info' }}" role="alert">{{ msg }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </main>
+
+
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Donor Dashboard - SurplusLink{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-success">My Food Posts</h2>
+    <a href="{{ url_for('donor.create_post') }}" class="btn btn-success">+ New Post</a>
+</div>
+
+
+<div class="row g-4">
+    {% for post in posts %}
+    <div class="col-md-6 col-lg-4">
+        <div class="glass-card p-3 {% if post.expires_soon and post.status == 'available' %}border-warning{% endif %}">
+            <div class="d-flex justify-content-between flex-wrap gap-1">
+                <h5 class="text-success">{{ post.food_type }}</h5>
+                <span>
+                    <span class="badge bg-info text-dark">{{ post.delivery_type }}</span>
+                    <span class="badge bg-{{ 'success' if post.status == 'available' else 'primary' if post.status == 'accepted' else 'success' if post.status == 'delivered' else 'danger' }}">{{ 'Order Complete' if post.status == 'delivered' and post.delivery_type == 'pickup' else 'Delivery Complete' if post.status == 'delivered' else post.status }}</span>
+                </span>
+            </div>
+            <p class="mb-1">Quantity: {{ post.quantity }} portions</p>
+            <p class="mb-1 small text-muted">Expires: {{ post.expiry_time.strftime('%Y-%m-%d %H:%M') }}</p>
+            {% if post.expires_soon and post.status == 'available' %}
+                <p class="text-warning small mb-2">⚠ Expiring within 2 hours</p>
+            {% endif %}
+            {% if post.ngo %}
+                <p class="small mb-2">Assigned to: <strong>{{ post.ngo.name }}</strong> ({{ post.ngo.email }})</p>
+            {% endif %}
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('donor.post_detail', post_id=post.id) }}" class="btn btn-sm btn-outline-success">View</a>
+                {% if post.status == 'accepted' and post.delivery_type == 'delivery' %}
+                <a href="{{ url_for('donor.post_detail', post_id=post.id) }}#map" class="btn btn-sm btn-outline-primary">Track</a>
+                {% endif %}
+                {% if post.status == 'delivered' and post.ngo %}
+                <a href="{{ url_for('donor.rate_ngo', post_id=post.id) }}" class="btn btn-sm btn-success">Rate NGO</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="glass-card p-5 text-center text-muted">
+            <p>No food posts yet. <a href="{{ url_for('donor.create_post') }}">Create your first post</a></p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

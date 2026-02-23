@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>NGO Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <h2>Available Food Donations</h2>
+
+    {% for d in donations %}
+    <div class="card">
+        <p><b>Food:</b> {{ d[1] }}</p>
+        <p><b>Quantity:</b> {{ d[2] }}</p>
+        <p><b>Location:</b> {{ d[3] }}</p>
+        <p><b>Contact:</b> {{ d[4] }}</p>
+        <a href="/accept/{{ d[0] }}"><button>Accept</button></a>
+    </div>
+    {% endfor %}
+</body>
+
+</html>

@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}NGO Dashboard - SurplusLink{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h2 class="text-success">Nearby Food Posts</h2>
+    <div class="d-flex align-items-center gap-2">
+        <form class="d-flex gap-2" method="get">
+            <input type="number" name="radius" value="{{ request.args.get('radius', 25) }}" class="form-control" style="width:100px" placeholder="km">
+            <button type="submit" class="btn btn-outline-success btn-sm">Apply radius</button>
+        </form>
+    </div>
+</div>
+
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-5">
+        <div class="glass-card p-3">
+            <label class="form-label small text-muted mb-2">My location (for matching & delivery)</label>
+            <div class="d-flex gap-2 mb-2">
+                <button type="button" class="btn btn-outline-success btn-sm" id="getLoc">
+                    <i class="bi bi-geo-alt-fill me-1"></i> Auto-detect
+                </button>
+                <span class="small align-self-center" id="locStatus">Or click on map</span>
+            </div>
+            <div id="ngoMap" style="height: 220px; border-radius: 12px; overflow: hidden;"></div>
+        </div>
+    </div>
+</div>
+
+{% if my_posts %}
+<div class="mb-4">
+    <h5 class="text-success">My Accepted / Delivered</h5>
+    <div class="row g-2">
+        {% for item in my_posts %}
+        <div class="col-md-4">
+            <div class="glass-card p-3">
+                <strong>{{ item.food_type }}</strong> - {{ item.quantity }} portions
+                <span class="badge bg-{{ 'primary' if item.status == 'accepted' else 'secondary' }}">{{ 'Delivery Complete' if item.status == 'delivered' else item.status }}</span>
+                <span class="badge bg-info text-dark">{{ item.delivery_type }}</span>
+                <br>
+                <small>{{ item.donor.name }}</small>
+                <div class="mt-2">
+                    {% if item.status == 'accepted' %}
+                        {% if item.delivery_type == 'delivery' %}
+                        <a href="{{ url_for('ngo.track_delivery', post_id=item.id) }}" class="btn btn-sm btn-success">Track Delivery</a>
+                        {% else %}
+                        <button type="button" class="btn btn-sm btn-success btn-complete-pickup" data-post-id="{{ item.id }}">Order Complete</button>
+                        {% endif %}
+                    {% else %}
+                    <a href="{{ url_for('ngo.rate_donor', post_id=item.id) }}" class="btn btn-sm btn-outline-success">Rate Donor</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<h5 class="text-success mb-3">Available Nearby</h5>
+<div class="row g-4">
+    {% for item in nearby %}
+    {% set post = item.post %}
+    <div class="col-md-6 col-lg-4">
+        <div class="glass-card p-3 {% if post.expires_soon %}border-warning{% endif %}">
+            <div class="d-flex justify-content-between flex-wrap gap-1">
+                <h5>{{ post.food_type }}</h5>
+                <span>
+                    <span class="badge bg-info text-dark">{{ post.delivery_type }}</span>
+                    <span class="badge bg-warning text-dark">{{ item.distance_km }} km</span>
+                </span>
+            </div>
+            <p class="mb-1">Quantity: {{ post.quantity }} portions</p>
+            <p class="mb-1 small text-muted">Expires: {{ post.expiry_time.strftime('%H:%M') }}</p>
+            {% if post.expires_soon %}
+            <p class="text-warning small mb-2">⚠ Expiring soon</p>
+            {% endif %}
+            <form method="post" action="{{ url_for('ngo.accept_post', post_id=post.id) }}">
+                <button type="submit" class="btn btn-success btn-sm">Accept</button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="glass-card p-5 text-center text-muted">
+            {% if not current_user.latitude or not current_user.longitude %}
+            <p>Set your location above (auto-detect or click on map) to see nearby posts.</p>
+            {% else %}
+            <p>No nearby food posts within the selected radius. Try increasing the radius.</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    var defaultLat = 20.5937, defaultLon = 78.9629;
+    var map = L.map('ngoMap').setView([defaultLat, defaultLon], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+
+    var marker = null;
+    var markerIcon = L.divIcon({ className: '', html: '<div style="background:#16a34a;width:24px;height:24px;border-radius:50%;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);"></div>' });
+
+    function setAndSaveLocation(lat, lon) {
+        var locStatus = document.getElementById('locStatus');
+        locStatus.textContent = 'Saving...';
+        fetch('{{ url_for("ngo.update_location") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ latitude: lat, longitude: lon }),
+            credentials: 'same-origin'
+        })
+        .then(function(r) {
+            if (!r.ok) throw new Error('Request failed');
+            return r.json().catch(function() { throw new Error('Invalid response'); });
+        })
+        .then(function(d) {
+            if (d.ok) {
+                locStatus.textContent = 'Location set ✓';
+                if (marker) map.removeLayer(marker);
+                marker = L.marker([lat, lon], { icon: markerIcon }).addTo(map);
+                map.setView([lat, lon], 14);
+            } else {
+                locStatus.textContent = 'Save failed';
+            }
+        })
+        .catch(function() {
+            locStatus.textContent = 'Save failed — try again';
+        });
+    }
+
+    map.on('click', function(e) {
+        setAndSaveLocation(e.latlng.lat, e.latlng.lng);
+    });
+
+    document.getElementById('getLoc').addEventListener('click', function() {
+        if (!navigator.geolocation) {
+            document.getElementById('locStatus').textContent = 'Geolocation not supported';
+            return;
+        }
+        document.getElementById('locStatus').textContent = 'Getting location...';
+        navigator.geolocation.getCurrentPosition(
+            function(pos) { setAndSaveLocation(pos.coords.latitude, pos.coords.longitude); },
+            function() { document.getElementById('locStatus').textContent = 'Denied — click on map'; }
+        );
+    });
+
+    {% if current_user.latitude and current_user.longitude %}
+    marker = L.marker([{{ current_user.latitude }}, {{ current_user.longitude }}], { icon: markerIcon }).addTo(map);
+    map.setView([{{ current_user.latitude }}, {{ current_user.longitude }}], 12);
+    document.getElementById('locStatus').textContent = 'Location set ✓';
+    {% endif %}
+
+    document.querySelectorAll('.btn-complete-pickup').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var id = this.dataset.postId;
+            this.disabled = true;
+            this.textContent = '...';
+            fetch('/ngo/api/post/' + id + '/complete-pickup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+                credentials: 'same-origin'
+            }).then(function(r) { return r.json(); }).then(function(d) {
+                if (d.ok) location.reload();
+            });
+        });
+    });
+})();
+</script>
+{% endblock %}

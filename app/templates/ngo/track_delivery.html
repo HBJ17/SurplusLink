@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Track Delivery - SurplusLink{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <a href="{{ url_for('ngo.dashboard') }}" class="text-success">&larr; Back to Dashboard</a>
+</div>
+<div class="row">
+    <div class="col-md-4">
+        <div class="glass-card p-4 mb-4">
+            <h4 class="text-success">{{ post.food_type }}</h4>
+            <p><strong>Quantity:</strong> {{ post.quantity }} portions</p>
+            <p><strong>Donor:</strong> {{ donor.name }}</p>
+            <p><strong>Distance:</strong> ~{{ distance_km }} km</p>
+            <p><strong>Est. Time:</strong> ~{{ est_minutes }} min</p>
+            <p><strong>Status:</strong> <span id="statusBadge" class="badge bg-{{ 'success' if post.status == 'delivered' else 'primary' }}">{{ 'Delivery Complete' if post.status == 'delivered' else post.status }}</span></p>
+            {% if post.status == 'accepted' %}
+            <button type="button" class="btn btn-outline-success btn-sm mb-2" id="btnStart">Start Delivery</button>
+            <button type="button" class="btn btn-success mt-2" id="btnConfirm">Confirm Delivery Complete</button>
+            <div id="deliveryCompleteMsg" class="alert alert-success mt-2 d-none" role="alert">✓ Delivery Complete! Donor and NGO have been notified.</div>
+            {% elif post.status == 'delivered' %}
+            <p class="text-success fw-bold">✓ Delivery Complete</p>
+            <a href="{{ url_for('ngo.rate_donor', post_id=post.id) }}" class="btn btn-success">Rate Donor</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div id="map" style="height: 450px; border-radius: 16px; overflow: hidden;"></div>
+        <p class="mt-2 small" id="progressInfo"></p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const donorLat = {{ donor_lat }}, donorLon = {{ donor_lon }};
+    const ngoLat = {{ ngo_lat }}, ngoLon = {{ ngo_lon }};
+    const postId = {{ post.id }};
+    const statusEl = document.getElementById('statusBadge');
+    const btnStart = document.getElementById('btnStart');
+    const btnConfirm = document.getElementById('btnConfirm');
+
+    const map = L.map('map').setView([donorLat, donorLon], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+
+    const donorIcon = L.divIcon({ className: '', html: '<div style="background:#16a34a;width:24px;height:24px;border-radius:50%;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div>' });
+    const ngoIcon = L.divIcon({ className: '', html: '<div style="background:#22c55e;width:24px;height:24px;border-radius:50%;border:3px solid white;box-shadow:0 2px 5px rgba(0,0,0,0.3);"></div>' });
+    const deliveryIcon = L.divIcon({ className: '', html: '<div style="background:#ef4444;width:28px;height:28px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4);"></div>' });
+
+    var ngoLatV = ngoLat, ngoLonV = ngoLon;
+    if (donorLat === ngoLat && donorLon === ngoLon) {
+        ngoLatV = donorLat + 0.01;
+        ngoLonV = donorLon + 0.01;
+    }
+
+    L.marker([donorLat, donorLon], { icon: donorIcon }).addTo(map).bindPopup('Donor ({{ donor.name }})');
+    L.marker([ngoLatV, ngoLonV], { icon: ngoIcon }).addTo(map).bindPopup('NGO');
+    const deliveryMarker = L.marker([donorLat, donorLon], { icon: deliveryIcon }).addTo(map).bindPopup('Delivery');
+    const path = L.polyline([[donorLat, donorLon], [ngoLatV, ngoLonV]], { color: '#16a34a', weight: 5 }).addTo(map);
+    map.fitBounds(path.getBounds().pad(0.2));
+
+    function haversine(lat1, lon1, lat2, lon2) {
+        const R = 6371, d = Math.PI / 180;
+        const a = Math.sin((lat2 - lat1) * d / 2) ** 2 + Math.cos(lat1 * d) * Math.cos(lat2 * d) * Math.sin((lon2 - lon1) * d / 2) ** 2;
+        return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+    const totalDist = haversine(donorLat, donorLon, ngoLatV, ngoLonV);
+    const estMin = Math.ceil(totalDist / 25 * 60);
+    document.getElementById('progressInfo').textContent = 'Distance: ' + totalDist.toFixed(2) + ' km | Est. time: ~' + estMin + ' min';
+
+    let animating = false;
+    function animateDelivery() {
+        if (animating) return;
+        animating = true;
+        document.getElementById('progressInfo').textContent = 'Delivery in progress...';
+        const steps = 60;
+        let step = 0;
+        const iv = setInterval(function() {
+            step++;
+            const t = step / steps;
+            const lat = donorLat + (ngoLatV - donorLat) * t;
+            const lon = donorLon + (ngoLonV - donorLon) * t;
+            deliveryMarker.setLatLng([lat, lon]);
+            const remaining = haversine(lat, lon, ngoLatV, ngoLonV);
+            document.getElementById('progressInfo').textContent = 'Delivery in progress... ' + remaining.toFixed(2) + ' km remaining';
+            if (step >= steps) {
+                clearInterval(iv);
+                document.getElementById('progressInfo').textContent = 'Arrived at destination. Click "Confirm Delivery Complete" when done.';
+            }
+        }, 500);
+    }
+
+    if (btnStart) {
+        btnStart.addEventListener('click', function() {
+            btnStart.disabled = true;
+            btnStart.textContent = 'Starting...';
+            fetch('/ngo/api/post/' + postId + '/start-delivery', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+                credentials: 'same-origin'
+            })
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    if (d.ok) {
+                        btnStart.textContent = 'Started';
+                        animateDelivery();
+                    } else {
+                        btnStart.disabled = false;
+                        btnStart.textContent = 'Start Delivery';
+                    }
+                })
+                .catch(function() {
+                    btnStart.disabled = false;
+                    btnStart.textContent = 'Start Delivery';
+                });
+        });
+    }
+
+    if (btnConfirm) {
+        btnConfirm.addEventListener('click', function() {
+            btnConfirm.disabled = true;
+            btnConfirm.textContent = 'Updating...';
+            var controller = new AbortController();
+            var timeoutId = setTimeout(function() { controller.abort(); }, 15000);
+            fetch('/ngo/api/post/' + postId + '/confirm-delivery', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({}),
+                redirect: 'manual',
+                signal: controller.signal
+            })
+                .then(function(r) {
+                    clearTimeout(timeoutId);
+                    if (r.type === 'opaqueredirect' || r.status === 302) {
+                        throw new Error('Session expired - please log in again');
+                    }
+                    if (!r.ok) throw new Error('Request failed: ' + r.status);
+                    return r.json();
+                })
+                .then(function(d) {
+                    if (d.ok) {
+                        statusEl.textContent = 'Delivery Complete';
+                        statusEl.className = 'badge bg-success';
+                        document.getElementById('progressInfo').textContent = 'Delivery Complete! Both donor and NGO have been notified.';
+                        const msg = document.getElementById('deliveryCompleteMsg');
+                        if (msg) { msg.classList.remove('d-none'); }
+                        btnConfirm.classList.add('d-none');
+                        setTimeout(function() { location.reload(); }, 1500);
+                    } else {
+                        btnConfirm.disabled = false;
+                        btnConfirm.textContent = 'Confirm Delivery Complete';
+                        alert(d.error || 'Something went wrong. Please try again.');
+                    }
+                })
+                .catch(function(err) {
+                    clearTimeout(timeoutId);
+                    btnConfirm.disabled = false;
+                    btnConfirm.textContent = 'Confirm Delivery Complete';
+                    alert(err.message || 'Request failed. Please refresh and try again.');
+                });
+        });
+    }
+})();
+</script>
+{% endblock %}

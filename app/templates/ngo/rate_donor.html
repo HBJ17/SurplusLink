@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Rate Donor - SurplusLink{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="glass-card p-4">
+            <h2 class="text-success mb-4">Rate {{ post.donor.name }}</h2>
+            <p>Food: {{ post.food_type }} ({{ post.quantity }} portions)</p>
+            <form method="post" action="{{ url_for('ngo.rate_donor', post_id=post.id) }}">
+                <div class="mb-3">
+                    <label class="form-label">Rating (1-5 stars)</label>
+                    <select name="rating" class="form-select">
+                        <option value="5">5 - Excellent</option>
+                        <option value="4">4 - Good</option>
+                        <option value="3">3 - Average</option>
+                        <option value="2">2 - Poor</option>
+                        <option value="1">1 - Bad</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Feedback (optional)</label>
+                    <textarea name="feedback" class="form-control" rows="3" placeholder="Share your experience"></textarea>
+                </div>
+                <button type="submit" class="btn btn-success">Submit Rating</button>
+                <a href="{{ url_for('ngo.dashboard') }}" class="btn btn-outline-secondary ms-2">Skip</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
